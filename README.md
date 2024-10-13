@@ -23,6 +23,7 @@ The data for this project is sourced from the Kaggle dataset:
 - **Dataset Link:** [Movies Dataset](https://www.kaggle.com/datasets/shivamb/netflix-shows?resource=download)
 
 ## Table Structure
+[Schema](https://github.com/SShailesh-Dev/Netflix-SQL-Project/blob/main/Table%20Schema.sql)
 
 The `netflix` table is defined as follows:
 
