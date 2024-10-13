@@ -256,6 +256,6 @@ Overall, this project underscores the importance of data analysis in the enterta
 
 This project is part of my portfolio, showcasing the SQL skills essential for data analyst roles. If you have any questions, feedback, or would like to collaborate, feel free to get in touch!
 
-### Stay Updated and Join the Community
+### Join me
 
 - **LinkedIn**: [Connect with me professionally](https://www.linkedin.com/in/sshailesh-dev)
