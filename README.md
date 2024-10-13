@@ -44,45 +44,43 @@ CREATE TABLE netflix
     listed_in VARCHAR(100),
     description VARCHAR(300)
 );
-
+```
 ## Business Problems and Solutions
 
 ### 1. Count the Number of Movies vs TV Shows
 
 ```sql
-SELECT 
-    type,
-    COUNT(*)
+SELECT
+	type,
+	count(*)
 FROM netflix
-GROUP BY 1;
+GROUP BY type;
 ```
 
 **Objective:** Determine the distribution of content types on Netflix.
 
 ### 2. Find the Most Common Rating for Movies and TV Shows
 
+#### most frequent rating for movie
+
 ```sql
-WITH RatingCounts AS (
-    SELECT 
-        type,
-        rating,
-        COUNT(*) AS rating_count
-    FROM netflix
-    GROUP BY type, rating
-),
-RankedRatings AS (
-    SELECT 
-        type,
-        rating,
-        rating_count,
-        RANK() OVER (PARTITION BY type ORDER BY rating_count DESC) AS rank
-    FROM RatingCounts
-)
-SELECT 
-    type,
-    rating AS most_frequent_rating
-FROM RankedRatings
-WHERE rank = 1;
+SELECT 'Movie' AS type, rating, COUNT(*) AS count
+FROM netflix
+WHERE type = 'Movie'
+GROUP BY rating
+ORDER BY count DESC
+LIMIT 1;
+```
+
+#### Get most frequent rating for TV shows
+
+```sql
+SELECT 'TV Show' AS type, rating, COUNT(*) AS count
+FROM netflix
+WHERE type = 'TV Show'
+GROUP BY rating
+ORDER BY count DESC
+LIMIT 1;
 ```
 
 **Objective:** Identify the most frequently occurring rating for each type of content.
@@ -90,9 +88,8 @@ WHERE rank = 1;
 ### 3. List All Movies Released in a Specific Year (e.g., 2020)
 
 ```sql
-SELECT * 
-FROM netflix
-WHERE release_year = 2020;
+SELECT * FROM netflix
+WHERE type = 'Movie' AND release_year = 2020;
 ```
 
 **Objective:** Retrieve all movies released in a specific year.
@@ -100,17 +97,12 @@ WHERE release_year = 2020;
 ### 4. Find the Top 5 Countries with the Most Content on Netflix
 
 ```sql
-SELECT * 
-FROM
-(
-    SELECT 
-        UNNEST(STRING_TO_ARRAY(country, ',')) AS country,
-        COUNT(*) AS total_content
-    FROM netflix
-    GROUP BY 1
-) AS t1
-WHERE country IS NOT NULL
-ORDER BY total_content DESC
+SELECT 
+	UNNEST(STRING_TO_ARRAY(country, ', ')) AS new_country,
+	COUNT(show_id) AS total_content
+FROM netflix
+GROUP BY 1
+ORDER BY 2 DESC
 LIMIT 5;
 ```
 
@@ -119,11 +111,14 @@ LIMIT 5;
 ### 5. Identify the Longest Movie
 
 ```sql
-SELECT 
-    *
-FROM netflix
-WHERE type = 'Movie'
-ORDER BY SPLIT_PART(duration, ' ', 1)::INT DESC;
+SELECT * FROM netflix
+WHERE 
+	type = 'Movie'
+	AND
+	duration = (
+				SELECT MAX(duration)
+				FROM netflix
+				);
 ```
 
 **Objective:** Find the movie with the longest duration.
@@ -131,7 +126,8 @@ ORDER BY SPLIT_PART(duration, ' ', 1)::INT DESC;
 ### 6. Find Content Added in the Last 5 Years
 
 ```sql
-SELECT *
+SELECT 
+	*
 FROM netflix
 WHERE TO_DATE(date_added, 'Month DD, YYYY') >= CURRENT_DATE - INTERVAL '5 years';
 ```
@@ -141,14 +137,9 @@ WHERE TO_DATE(date_added, 'Month DD, YYYY') >= CURRENT_DATE - INTERVAL '5 years'
 ### 7. Find All Movies/TV Shows by Director 'Rajiv Chilaka'
 
 ```sql
-SELECT *
-FROM (
-    SELECT 
-        *,
-        UNNEST(STRING_TO_ARRAY(director, ',')) AS director_name
-    FROM netflix
-) AS t
-WHERE director_name = 'Rajiv Chilaka';
+SELECT title, director
+FROM netflix
+WHERE director ILIKE '%Rajiv Chilaka%';
 ```
 
 **Objective:** List all content directed by 'Rajiv Chilaka'.
@@ -156,10 +147,11 @@ WHERE director_name = 'Rajiv Chilaka';
 ### 8. List All TV Shows with More Than 5 Seasons
 
 ```sql
-SELECT *
-FROM netflix
-WHERE type = 'TV Show'
-  AND SPLIT_PART(duration, ' ', 1)::INT > 5;
+SELECT * FROM netflix
+WHERE 
+	type = 'TV Show'
+	AND
+	SPLIT_PART(duration, ' ', 1)::NUMERIC > 5
 ```
 
 **Objective:** Identify TV shows with more than 5 seasons.
@@ -168,41 +160,34 @@ WHERE type = 'TV Show'
 
 ```sql
 SELECT 
-    UNNEST(STRING_TO_ARRAY(listed_in, ',')) AS genre,
-    COUNT(*) AS total_content
+	UNNEST(STRING_TO_ARRAY(listed_in, ',')) AS genre,
+	COUNT(show_id)	AS total_content
 FROM netflix
-GROUP BY 1;
+GROUP BY 1
+ORDER BY total_content DESC;
 ```
 
 **Objective:** Count the number of content items in each genre.
 
-### 10.Find each year and the average numbers of content release in India on netflix. 
-return top 5 year with highest avg content release!
+### 10.What is the total number of content added in a specific country for each year
 
 ```sql
 SELECT 
-    country,
-    release_year,
-    COUNT(show_id) AS total_release,
-    ROUND(
-        COUNT(show_id)::numeric /
-        (SELECT COUNT(show_id) FROM netflix WHERE country = 'India')::numeric * 100, 2
-    ) AS avg_release
+	EXTRACT(YEAR FROM TO_DATE(date_added, 'Month DD, YYYY')) AS year,
+	COUNT(*)
 FROM netflix
 WHERE country = 'India'
-GROUP BY country, release_year
-ORDER BY avg_release DESC
-LIMIT 5;
+GROUP BY 1
+ORDER BY 2 DESC;
 ```
 
-**Objective:** Calculate and rank years by the average number of content releases by India.
+**Objective:** Calculate and rank years by the number of content releases by India.
 
 ### 11. List All Movies that are Documentaries
 
 ```sql
-SELECT * 
-FROM netflix
-WHERE listed_in LIKE '%Documentaries';
+SELECT * FROM netflix
+WHERE listed_in ILIKE '%Documentaries%';
 ```
 
 **Objective:** Retrieve all movies classified as documentaries.
@@ -210,8 +195,7 @@ WHERE listed_in LIKE '%Documentaries';
 ### 12. Find All Content Without a Director
 
 ```sql
-SELECT * 
-FROM netflix
+SELECT * FROM netflix
 WHERE director IS NULL;
 ```
 
@@ -220,10 +204,11 @@ WHERE director IS NULL;
 ### 13. Find How Many Movies Actor 'Salman Khan' Appeared in the Last 10 Years
 
 ```sql
-SELECT * 
-FROM netflix
-WHERE casts LIKE '%Salman Khan%'
-  AND release_year > EXTRACT(YEAR FROM CURRENT_DATE) - 10;
+SELECT * FROM netflix
+WHERE
+	CASTS ILIKE '%Salman Khan%'
+	AND
+	release_year > EXTRACT(YEAR FROM CURRENT_DATE) - 10;
 ```
 
 **Objective:** Count the number of movies featuring 'Salman Khan' in the last 10 years.
@@ -232,58 +217,43 @@ WHERE casts LIKE '%Salman Khan%'
 
 ```sql
 SELECT 
-    UNNEST(STRING_TO_ARRAY(casts, ',')) AS actor,
-    COUNT(*)
+    UNNEST(STRING_TO_ARRAY(casts, ', ')) AS actor,
+    COUNT(*) AS total_movies
 FROM netflix
-WHERE country = 'India'
+WHERE country = 'India' AND type = 'Movie'
 GROUP BY actor
-ORDER BY COUNT(*) DESC
+ORDER BY total_movies DESC
 LIMIT 10;
 ```
 
 **Objective:** Identify the top 10 actors with the most appearances in Indian-produced movies.
 
-### 15. Categorize Content Based on the Presence of 'Kill' and 'Violence' Keywords
+## Findings
 
-```sql
-SELECT 
-    category,
-    COUNT(*) AS content_count
-FROM (
-    SELECT 
-        CASE 
-            WHEN description ILIKE '%kill%' OR description ILIKE '%violence%' THEN 'Bad'
-            ELSE 'Good'
-        END AS category
-    FROM netflix
-) AS categorized_content
-GROUP BY category;
-```
+1. **Content Distribution**: The analysis reveals the ratio of movies to TV shows available on Netflix, indicating the platform's content strategy. For example, if there are significantly more movies than TV shows (or vice versa), it may reflect audience preferences or production capabilities.
 
-**Objective:** Categorize content as 'Bad' if it contains 'kill' or 'violence' and 'Good' otherwise. Count the number of items in each category.
+2. **Most Common Ratings**: The findings show the most frequent ratings assigned to movies and TV shows. Understanding which ratings are most common can help inform content creators and marketers about what resonates with viewers.
 
-## Findings and Conclusion
+3. **Trends in New Content**: The data on content added over the last five years highlights trends in Netflix's acquisition and production strategies. This analysis may show spikes in content releases during certain years, potentially correlating with significant events or changes in strategy.
 
-- **Content Distribution:** The dataset contains a diverse range of movies and TV shows with varying ratings and genres.
-- **Common Ratings:** Insights into the most common ratings provide an understanding of the content's target audience.
-- **Geographical Insights:** The top countries and the average content releases by India highlight regional content distribution.
-- **Content Categorization:** Categorizing content based on specific keywords helps in understanding the nature of content available on Netflix.
+4. **Director and Actor Insights**: By identifying key directors and actors, we can understand who contributes most to Netflix's library, which can help in marketing and viewer engagement strategies. For example, knowing the most prolific actors in movies produced in India can guide promotional efforts.
 
-This analysis provides a comprehensive view of Netflix's content and can help inform content strategy and decision-making.
+5. **Documentary Availability**: The identification of documentaries on the platform provides insights into the types of content that cater to educational and informational interests, which may attract a specific viewer demographic.
 
+## Conclusion
 
+The analysis of the Netflix dataset provides valuable insights into content distribution, viewer preferences, and trends in the streaming service. The findings can guide Netflix's content strategy by:
 
-## Author - Zero Analyst
+- Enhancing the understanding of viewer preferences regarding ratings and genres.
+- Identifying key contributors to the content library, which can inform future partnerships and acquisitions.
+- Tracking trends over the years, helping to predict future content strategies.
+
+Overall, this project underscores the importance of data analysis in the entertainment industry, particularly for streaming platforms like Netflix, which rely on content diversity and viewer engagement to maintain their competitive edge.
+
+## Author - Shailesh Kumar
 
 This project is part of my portfolio, showcasing the SQL skills essential for data analyst roles. If you have any questions, feedback, or would like to collaborate, feel free to get in touch!
 
 ### Stay Updated and Join the Community
 
-For more content on SQL, data analysis, and other data-related topics, make sure to follow me on social media and join our community:
-
-- **YouTube**: [Subscribe to my channel for tutorials and insights](https://www.youtube.com/@zero_analyst)
-- **Instagram**: [Follow me for daily tips and updates](https://www.instagram.com/zero_analyst/)
-- **LinkedIn**: [Connect with me professionally](https://www.linkedin.com/in/najirr)
-- **Discord**: [Join our community to learn and grow together](https://discord.gg/36h5f2Z5PK)
-
-Thank you for your support, and I look forward to connecting with you!
+- **LinkedIn**: [Connect with me professionally](https://www.linkedin.com/in/sshailesh_dev)
