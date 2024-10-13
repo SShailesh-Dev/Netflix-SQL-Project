@@ -256,4 +256,4 @@ This project is part of my portfolio, showcasing the SQL skills essential for da
 
 ### Stay Updated and Join the Community
 
-- **LinkedIn**: [Connect with me professionally](https://www.linkedin.com/in/sshailesh_dev)
+- **LinkedIn**: [Connect with me professionally](https://www.linkedin.com/in/sshailesh-dev)
